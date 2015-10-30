@@ -14,3 +14,14 @@
 $app->get('/', [
     'as' => 'index', 'uses' => 'IndexController@welcome'
 ]);
+
+$app->post('/upload', [
+    'as' => 'upload', 'uses' => 'IndexController@upload'
+]);
+
+$app->get('pictures/profile_{id}.jpg', ['as' => 'picture', function($id) {
+    $path = storage_path('app') . '/profile_' . $id . '.jpg';
+    if (file_exists($path)) {
+        return response(readfile($path, 200))->header('Content-Type', 'image/jpg');
+    }
+}]);

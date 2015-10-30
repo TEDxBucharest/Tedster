@@ -5,15 +5,15 @@ namespace App\Http\Controllers;
 use Facebook\Facebook;
 use Imagine\Gd\Imagine;
 use Imagine\Image\ImageInterface;
-use
-
-Imagine\Image\Point;
+use Imagine\Image\Point;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class IndexController extends Controller
 {
     protected $fb;
     protected $storagePath;
+    protected $userId;
 
     public function __construct()
     {
@@ -39,17 +39,27 @@ class IndexController extends Controller
             'jpeg_quality' => 100,
         ];
 
-        $newPictureName = sprintf('profile_%s.jpg', $this->getProfileId());
-        $savePath = $this->storagePath . $newPictureName;
-        // $newPicture->save($savePath, $options);
+        $newPicture->save($this->getPicturePath($this->getProfileId()), $options);
 
-        $newPicture->show('jpg', $options);
+        return view('welcome', ['userId' => $this->getProfileId()]);
+    }
+
+    public function upload(Request $request)
+    {
+        if (!file_exists($this->getPicturePath())) {
+            return;
+        }
+
+        $response = $this->uploadPicture($this->getPicturePath(), $request->get('description'));
+        $photoId = $response->getGraphNode()->getProperty('id');
+
+        return redirect(sprintf('https://www.facebook.com/photo.php?fbid=%s&makeprofile=1', $photoId));
     }
 
     protected function getProfilePicture()
     {
         try {
-            $response = $this->fb->get('/me/picture?type=large&redirect=false');
+            $response = $this->fb->get('/me/picture?type=large&redirect=false&width=400');
 
         } catch(Facebook\Exceptions\FacebookResponseException $e) {
             echo 'Graph returned an error: ' . $e->getMessage();
@@ -65,19 +75,23 @@ class IndexController extends Controller
 
     protected function getProfileId()
     {
-        try {
-            $response = $this->fb->get('/me');
+        if (empty($this->userId)) {
+            try {
+                $response = $this->fb->get('/me');
 
-        } catch(Facebook\Exceptions\FacebookResponseException $e) {
-            echo 'Graph returned an error: ' . $e->getMessage();
-            exit;
+            } catch(Facebook\Exceptions\FacebookResponseException $e) {
+                echo 'Graph returned an error: ' . $e->getMessage();
+                exit;
 
-        } catch(Facebook\Exceptions\FacebookSDKException $e) {
-            echo 'Facebook SDK returned an error: ' . $e->getMessage();
-            exit;
+            } catch(Facebook\Exceptions\FacebookSDKException $e) {
+                echo 'Facebook SDK returned an error: ' . $e->getMessage();
+                exit;
+            }
+
+            $this->userId = $response->getGraphObject()->getProperty('id');
         }
 
-        return $response->getGraphObject()->getProperty('id');
+        return $this->userId;
     }
 
     protected function addOverlay($pictureUrl)
@@ -93,14 +107,20 @@ class IndexController extends Controller
         $picture->paste($overlay, new Point($x, $y));
 
         return $picture;
+    }
 
-        // $options = array(
-        //     'resolution-units' => ImageInterface::RESOLUTION_PIXELSPERINCH,
-        //     'resolution-x' => 72,
-        //     'resolution-y' => 72,
-        //     'jpeg_quality' => 100,
-        // );
+    protected function uploadPicture($path, $message = '')
+    {
+        $data = [
+            'source' => $this->fb->fileToUpload($path),
+            'message' => $message,
+        ];
 
-        // return $imagine->open($pictureUrl)->show('jpg', $options);
+        return $this->fb->post('/me/photos', $data);
+    }
+
+    protected function getPicturePath()
+    {
+        return $this->storagePath . sprintf('profile_%s.jpg', $this->getProfileId());
     }
 }

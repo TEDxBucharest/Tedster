@@ -48,7 +48,7 @@ class FacebookMiddleware
             return $next($request);
         }
 
-        $permissions = ['public_profile']; // optional
+        $permissions = ['public_profile', 'publish_actions'];
         $loginUrl = $helper->getLoginUrl(env('CALLBACK'), $permissions);
 
         return redirect($loginUrl);
