@@ -14,8 +14,9 @@
 
         <h1>Show your support for TEDxBucharest</h1>
 
+        <img src="{{ route('picture', ['id' => $userId]) }}" alt="" />
+
         <form action="{{ route('upload') }}" method="post">
-            <img src="{{ route('picture', ['id' => $userId]) }}" alt="" />
             <input type="text" name="description" value="Created with {{ env('CALLBACK') }}" />
             <button type="submit">Set as profile picture</button>
         </form>
